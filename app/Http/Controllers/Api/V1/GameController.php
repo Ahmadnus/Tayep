@@ -114,7 +114,7 @@ class GameController extends Controller
 
       return $this->successResponse(
     ['in_game' => true, 'game' => new GameResource($game)],
-    __('game.current_game')
+    trans('game.current_game')
 );
 
     }

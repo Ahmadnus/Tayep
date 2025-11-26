@@ -197,47 +197,48 @@ class GameService
         ];
     }
 
-    public function start(int $id)
-    {
-        $game = $this->findGameOrFail($id);
+   public function start(int $id)
+{
+    $game = $this->findGameOrFail($id);
 
-        $playerCheck = $this->ensurePlayerInGame($game);
-        if (is_array($playerCheck)) return $playerCheck;
+    $playerCheck = $this->ensurePlayerInGame($game);
+    if (is_array($playerCheck)) return $playerCheck;
 
-        $ownerCheck = $this->ensureOwner($game);
-        if (is_array($ownerCheck)) return $ownerCheck;
+    $ownerCheck = $this->ensureOwner($game);
+    if (is_array($ownerCheck)) return $ownerCheck;
 
-        if ($game->status === 'playing') {
-            return [
-                'error' => true,
-                'message' => __('game.already_playing'),
-                'status' => 400
-            ];
-        }
-
-        if ($game->status === 'finished') {
-            return [
-                'error' => true,
-                'message' => __('game.already_finished'),
-                'status' => 400
-            ];
-        }
-
-        $playerCountCheck = $this->ensurePlayerCount($game, 2);
-        if (is_array($playerCountCheck)) return $playerCountCheck;
-
-        $game->update([
-            'status' => 'playing',
-            'current_round' => 1,
-        ]);
-
-        event(new GameStarted($game));
-
+    if ($game->status === 'playing') {
         return [
-            'message' => __('game.start_success'),
-            'status' => 200
+            'error' => true,
+            'message' => __('game.already_playing'),
+            'status' => 400
         ];
     }
+
+    if ($game->status === 'finished') {
+        return [
+            'error' => true,
+            'message' => __('game.already_finished'),
+            'status' => 400
+        ];
+    }
+
+    $playerCountCheck = $this->ensurePlayerCount($game, 2);
+    if (is_array($playerCountCheck)) return $playerCountCheck;
+
+    // بدء اللعبة وأول جولة
+    $game->update([
+        'status' => 'playing',
+        'current_round' => 1,
+    ]);
+
+    event(new GameStarted($game));
+
+    return [
+        'message' => __('game.start_success'),
+        'status' => 200
+    ];
+}
 
     public function getGameDetails(int $gameId)
     {

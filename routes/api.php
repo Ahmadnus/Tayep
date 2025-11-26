@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\GameController;
+use App\Http\Controllers\Api\V1\RoundController;
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
@@ -30,7 +31,7 @@ Route::prefix('v1/game')->middleware('auth:sanctum')->controller(GameController:
 });
 
 
-use App\Http\Controllers\Api\V1\RoundController;
+
 
 Route::prefix('v1/rounds')->middleware('auth:sanctum')->group(function () {
 
