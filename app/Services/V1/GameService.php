@@ -7,7 +7,11 @@ use App\Models\GamePlayer;
 use Endroid\QrCode\Builder\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use App\Events\PlayerJoinedGame;
+use App\Events\GameStarted;
 use App\Traits\GameValidationTrait;
+use App\Events\PlayerLeftGame;
+use App\Events\NewOwner;
 
 class GameService
 {
@@ -22,7 +26,7 @@ class GameService
         if ($existing) {
             return [
                 'error' => true,
-                'message' => 'لا يمكنك إنشاء غرفة جديدة لأنك داخل لعبة حالياً.',
+                'message' => trans('game.cannot_create_in_game'),
                 'status' => 400
             ];
         }
@@ -41,7 +45,7 @@ class GameService
         ]);
 
         return [
-            'message' => 'تم إنشاء الغرفة بنجاح.',
+            'message' =>trans('game.created_success'),
             'game' => $game,
             'status' => 201
         ];
@@ -57,7 +61,7 @@ class GameService
         if ($game->players()->count() >= 5) {
             return [
                 'error' => true,
-                'message' => 'الغرفة ممتلئة، لا يمكنك الانضمام.',
+                'message' => __('game.full'),
                 'status' => 403
             ];
         }
@@ -65,19 +69,21 @@ class GameService
         $existingPlayer = $this->ensurePlayerInGame($game);
         if (!is_array($existingPlayer)) {
             return [
-                'message' => 'أنت موجود مسبقاً داخل اللعبة.',
+                'message' => __('game.already_joined'),
                 'game' => $game,
                 'status' => 200
             ];
         }
 
-        $game->players()->create([
+        $player = $game->players()->create([
             'user_id' => Auth::id(),
             'points' => 0,
         ]);
 
+        event(new PlayerJoinedGame($player));
+
         return [
-            'message' => 'تم الانضمام إلى اللعبة بنجاح.',
+            'message' => __('game.joined_success'),
             'game' => $game,
             'status' => 200
         ];
@@ -98,15 +104,16 @@ class GameService
             if (!$newOwner) {
                 $game->delete();
                 return [
-                    'message' => 'تم حذف الغرفة لأنها أصبحت فارغة.',
+                    'message' => __('game.owner_left_room_deleted'),
                     'status' => 200
                 ];
             }
 
             $game->update(['created_by' => $newOwner->user_id]);
 
+            event(new NewOwner($game));
             return [
-                'message' => 'تم نقل ملكية الغرفة للاعب التالي ومغادرة الغرفة.',
+                'message' => __('game.owner_left_transfer'),
                 'new_owner_id' => $newOwner->user_id,
                 'status' => 200
             ];
@@ -117,13 +124,15 @@ class GameService
         if ($game->players()->count() === 0) {
             $game->delete();
             return [
-                'message' => 'تم حذف الغرفة لأنها أصبحت فارغة.',
+                'message' => __('game.owner_left_room_deleted'),
                 'status' => 200
             ];
         }
 
+        event(new PlayerLeftGame($player->user->name, $game->id));
+
         return [
-            'message' => 'تمت مغادرة اللعبة بنجاح.',
+            'message' => __('game.left_success'),
             'status' => 200
         ];
     }
@@ -150,7 +159,7 @@ class GameService
         if ($userId == $game->created_by) {
             return [
                 'error' => true,
-                'message' => 'لا يمكنك طرد نفسك لأنك صاحب الغرفة.',
+                'message' => __('game.cannot_kick_self'),
                 'status' => 400
             ];
         }
@@ -159,7 +168,7 @@ class GameService
         if (!$player) {
             return [
                 'error' => true,
-                'message' => 'هذا اللاعب غير موجود داخل هذه الغرفة.',
+                'message' => __('game.player_not_found'),
                 'status' => 404
             ];
         }
@@ -167,7 +176,7 @@ class GameService
         if ($game->status === 'playing') {
             return [
                 'error' => true,
-                'message' => 'لا يمكن طرد اللاعبين بعد بدء اللعبة.',
+                'message' => __('game.cannot_kick_during_play'),
                 'status' => 403
             ];
         }
@@ -177,13 +186,13 @@ class GameService
         if ($game->players()->count() === 0) {
             $game->delete();
             return [
-                'message' => 'تم حذف اللاعب، الغرفة أصبحت فارغة.',
+                'message' => __('game.kick_room_empty'),
                 'status' => 200
             ];
         }
 
         return [
-            'message' => 'تم طرد اللاعب بنجاح.',
+            'message' => __('game.kicked_success'),
             'status' => 200
         ];
     }
@@ -201,7 +210,7 @@ class GameService
         if ($game->status === 'playing') {
             return [
                 'error' => true,
-                'message' => 'اللعبة بدأت بالفعل.',
+                'message' => __('game.already_playing'),
                 'status' => 400
             ];
         }
@@ -209,7 +218,7 @@ class GameService
         if ($game->status === 'finished') {
             return [
                 'error' => true,
-                'message' => 'لا يمكن بدء لعبة منتهية.',
+                'message' => __('game.already_finished'),
                 'status' => 400
             ];
         }
@@ -222,29 +231,27 @@ class GameService
             'current_round' => 1,
         ]);
 
+        event(new GameStarted($game));
+
         return [
-            'message' => 'تم بدء اللعبة بنجاح.',
+            'message' => __('game.start_success'),
             'status' => 200
         ];
     }
 
     public function getGameDetails(int $gameId)
-{
-    $game = $this->findGameOrFail($gameId);
+    {
+        $game = $this->findGameOrFail($gameId);
 
-    $playerCheck = $this->ensurePlayerInGame($game);
-    if (is_array($playerCheck)) {
-        return $playerCheck; // اللاعب ليس داخل اللعبة
+        $playerCheck = $this->ensurePlayerInGame($game);
+        if (is_array($playerCheck)) return $playerCheck;
+
+        $game->load(['players.user']);
+
+        return [
+            'message' => __('game.game_details_success'),
+            'game' => $game,
+            'status' => 200
+        ];
     }
-
-    // تحميل اللاعبين والعلاقة بصاحب اللعبة
-    $game->load(['players.user']);
-
-    return [
-        'message' => 'تم جلب تفاصيل اللعبة بنجاح.',
-        'game' => $game,
-        'status' => 200
-    ];
-}
-
 }

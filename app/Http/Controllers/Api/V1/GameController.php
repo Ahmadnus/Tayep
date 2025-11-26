@@ -88,10 +88,14 @@ class GameController extends Controller
     {
         $game = Game::with(['players.user', 'owner'])->find($gameId);
         if (!$game) {
-            return $this->errorResponse('اللعبة غير موجودة', 404);
+          return $this->errorResponse(__('game.not_found'), 404);
+
         }
 
-        return $this->successResponse(['game' => new GameResource($game)], 'تم جلب تفاصيل اللعبة بنجاح.');
+      return $this->successResponse(
+    ['game' => new GameResource($game)],
+    __('game.fetched')
+);
     }
 
     public function myCurrentGame()
@@ -101,9 +105,17 @@ class GameController extends Controller
             ->first();
 
         if (!$game) {
-            return $this->successResponse(['in_game' => false], 'أنت حالياً لست داخل أي لعبة.');
+          return $this->successResponse(
+    ['in_game' => false],
+    __('game.not_in_game')
+);
+
         }
 
-        return $this->successResponse(['in_game' => true, 'game' => new GameResource($game)], 'تم جلب اللعبة الحالية.');
+      return $this->successResponse(
+    ['in_game' => true, 'game' => new GameResource($game)],
+    __('game.current_game')
+);
+
     }
 }

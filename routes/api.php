@@ -28,3 +28,21 @@ Route::prefix('v1/game')->middleware('auth:sanctum')->controller(GameController:
     Route::post('/{id}/start', 'startGame');
     Route::get('/current', 'getMyCurrentGame');
 });
+
+
+use App\Http\Controllers\Api\V1\RoundController;
+
+Route::prefix('v1/rounds')->middleware('auth:sanctum')->group(function () {
+
+    Route::post('/{gameId}/start', [RoundController::class, 'startRound'])
+        ->name('round.start');
+
+    Route::post('/{gameId}/end', [RoundController::class, 'endRound'])
+        ->name('round.end');
+
+    Route::post('/{gameId}/next', [RoundController::class, 'nextRound'])
+        ->name('round.next');
+
+    Route::get('/{gameId}/current', [RoundController::class, 'getCurrentRound'])
+        ->name('round.current');
+});
